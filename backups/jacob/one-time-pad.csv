@@ -1,5 +1,5 @@
-id,name,description,connection_info,max_attempts,value,category,type,state,requirements
-7,One-time Pad,"Why shouldn't you reuse a one-time pad?  Decode parts of these three messages which were all encrypted with the same one-time pad to find out.
+id,name,flags,description,connection_info,max_attempts,value,category,type,state,requirements
+7,One-time Pad,"dustbin","Why shouldn't you reuse a one-time pad?  Decode parts of these three messages which were all encrypted with the same one-time pad to find out.
 
 ```
 m1 XOR m2
