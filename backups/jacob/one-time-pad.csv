@@ -27,4 +27,9 @@ m2 XOR m3
 
 * An ASCII table with binary representation of letters
 
+*Hints*:
+
+* Figuring out where spaces and duplicate letters are will be a useful place to start.
+* Use your intuition and knowledge of English to help fill in gaps once you've isolated what is known.
+
 <p style=""font-size: 8px"">Source: modified from an exercise in Introduction to Cryptography with Coding Theory by Trappe and Washington</p>",,0,30,Stream Ciphers,standard,visible,
