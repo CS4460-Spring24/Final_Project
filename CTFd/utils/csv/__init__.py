@@ -186,7 +186,7 @@ def dump_challenges_with_flags_hints_tags_csv():
 
     challenges = Challenges.query.all()
 
-    header = [column.name for column in Challenges.__mapper__.columns] + ['flags', 'hints', 'tags']
+    header = [column.name for column in Challenges.__mapper__.columns if column.name != "next_id"] + ['flags', 'hints', 'tags']
     writer.writerow(header)
 
     responses = Challenges.query.all()
@@ -209,7 +209,7 @@ def dump_challenges_with_flags_hints_tags_csv():
         currtags = ','.join([t.value for t in curr.tags])
 
         challenge_row = [
-            getattr(curr, column.name) for column in Challenges.__mapper__.columns
+            getattr(curr, column.name) for column in Challenges.__mapper__.columns if column.name != "next_id"
         ] + [currflags, currhints, currtags]
         writer.writerow(challenge_row)
 
