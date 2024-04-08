@@ -10,6 +10,7 @@ from CTFd.models import (
     Teams,
     UserFields,
     Users,
+    Challenges,
     db,
     get_class_by_tablename,
 )
@@ -179,6 +180,40 @@ def dump_users_with_fields_csv():
 
     return output
 
+def dump_challenges_with_flags_csv():
+    temp = StringIO()
+    writer = csv.writer(temp)
+
+    challenges = Challenges.query.all()
+
+    header = [column.name for column in Challenges.__mapper__.columns] + ['flags']
+    writer.writerow(header)
+
+    responses = Challenges.query.all()
+
+    for curr in responses:
+        currflags = json.dumps([
+            {col.name: getattr(f, col.name)
+                for col in Flags.__mapper__.columns
+                if col.name not in ["id", "challenge_id"]
+            }
+            for f in curr.flags
+        ])
+
+        challenge_row = [
+            getattr(curr, column.name) for column in Challenges.__mapper__.columns
+        ] + [currflags]
+        writer.writerow(challenge_row)
+
+    temp.seek(0)
+
+    # In Python 3 send_file requires bytes
+    output = BytesIO()
+    output.write(temp.getvalue().encode("utf-8"))
+    output.seek(0)
+    temp.close()
+
+    return output
 
 def dump_teams_with_fields_csv():
     temp = StringIO()
@@ -343,6 +378,7 @@ def load_challenges_csv(dict_reader):
         # Throw away fields that we can't trust if provided
         _ = line.pop("id", None)
         _ = line.pop("requirements", None)
+        _ = line.pop("next_id", None)    # Difficult to actually line this up
 
         flags = line.pop("flags", None)
         tags = line.pop("tags", None)
@@ -434,4 +470,5 @@ CSV_KEYS = {
     "users+fields": dump_users_with_fields_csv,
     "teams+fields": dump_teams_with_fields_csv,
     "teams+members+fields": dump_teams_with_members_fields_csv,
+    "challenges": dump_challenges_with_flags_csv,
 }
