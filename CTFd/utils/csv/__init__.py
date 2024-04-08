@@ -180,13 +180,13 @@ def dump_users_with_fields_csv():
 
     return output
 
-def dump_challenges_with_flags_csv():
+def dump_challenges_with_flags_hints_tags_csv():
     temp = StringIO()
     writer = csv.writer(temp)
 
     challenges = Challenges.query.all()
 
-    header = [column.name for column in Challenges.__mapper__.columns] + ['flags']
+    header = [column.name for column in Challenges.__mapper__.columns] + ['flags', 'hints', 'tags']
     writer.writerow(header)
 
     responses = Challenges.query.all()
@@ -199,10 +199,18 @@ def dump_challenges_with_flags_csv():
             }
             for f in curr.flags
         ])
+        currhints = json.dumps([
+            {col.name: getattr(h, col.name)
+                for col in Hints.__mapper__.columns
+                if col.name not in ["id", "challenge_id", "requirements"]
+            }
+            for h in curr.hints
+        ])
+        currtags = ','.join([t.value for t in curr.tags])
 
         challenge_row = [
             getattr(curr, column.name) for column in Challenges.__mapper__.columns
-        ] + [currflags]
+        ] + [currflags, currhints, currtags]
         writer.writerow(challenge_row)
 
     temp.seek(0)
@@ -470,5 +478,5 @@ CSV_KEYS = {
     "users+fields": dump_users_with_fields_csv,
     "teams+fields": dump_teams_with_fields_csv,
     "teams+members+fields": dump_teams_with_members_fields_csv,
-    "challenges": dump_challenges_with_flags_csv,
+    "challenges": dump_challenges_with_flags_hints_tags_csv,
 }
