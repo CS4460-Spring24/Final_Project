@@ -1,0 +1,5 @@
+id,name,flags,description,connection_info,max_attempts,value,category,type,state,requirements
+11,TCP,hello world!,Find the hidden flag in the TCP packet. Only return what is within the brackets. Remove any odd spacing between the flag and the brackets!,,0,1,networking,standard,visible,
+12,Timing,46.2,add all time stamps for the tcp packets round to nearest tenth,,0,1,networking,standard,visible,
+13,XOR fun,tr1ceratops,"First find the packet. Use the number 4460 to find the packet, within the packet you will find the key to get the rest of the flag. Only upload what is between the brackets!",,0,3,networking,standard,visible,
+14,Fragments,YOU_FOUND_ME!,"Find the fragments of the message, make sure to include everything within the brackets. Your hint is 007a to make things easier, however it can be done without using the hint. The flag should follow the same ""format"" either all lowercase or all uppercase, so make sure to not accidentally include false characters!",,0,3,networking,standard,visible,
