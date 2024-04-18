@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gorbonzo</title>
+</head>
+<body>
+    <div id="c">
+        <input
+        id="cin"
+        type="text"
+            style= "height: 5em;
+                    width: 50em;
+                    border-radius: 10px;
+                    background-color: black;
+                    color: yellowgreen;
+                    "/>
+        <br/>
+        <button id="csubmit" type="button">Send command</button>
+        <div id="cout"></div>
+    </div>
+
+
+    <!-- 
+        If you can read this, it means that you used Ctrl+U or otherwise viewed the source.
+        You now have the ability to find all of the flags and rip this challenge wide open.
+        But on the other hand, you could try to do it normally and get something out of it.
+
+        If you're looking at this for grading purposes, I had originally envisioned this as working in a self-hosted
+        instance where adding endpoints would have been more feasible.  In that case,
+        a fetch request would have been made to an endpoint with Django templates/PHP or
+        some other server-side thing to keep it from being visible using the techniques
+        you are using, at this exact second, to view this message.  We ultimately made the (good) choice
+        to switch to a hosted instance, but it had a few small side-effects.
+    -->
+    <script>
+        //////////////////
+        // Backend - Setup
+        //////////////////
+
+        class FileEntry {
+            constructor(name, isDirectory, isReadable, ...data) {
+                this.name = name;
+                this.isDirectory = isDirectory;
+                this.isReadable = isReadable;
+                this.parent = null;
+                if (this.isDirectory) {
+                    this.filesContained = data;
+                    for(let subfile of this.filesContained) {
+                        subfile.parent = this;
+                    }
+                } else {
+                    //Only takes the first item to be the file's contents
+                    this.content = (data.length > 0) ? data[0] : "";
+                }
+            }
+
+            //Only supports relative paths--catching absolute paths has to happen elsewhere since
+            //it can't see what the root directory is.
+            navigate(path) {
+                let breadcrumbs = path.trim().split("/");
+                let target = this;
+                
+                //Splitting on "/" leaves a blank string if the command begins with a "/"
+                //In this case, start at the root directory
+                if(breadcrumbs.length && breadcrumbs[0] === "") {
+                    target = filesystemRoot;
+                    breadcrumbs = breadcrumbs.slice(1);
+                }
+
+                for(let crumb of breadcrumbs) {
+                    //bash itself seems to ignore duplicated slashes (since we're splitting on them, the empty string)
+                    if(crumb === "." || crumb === "") {
+                        continue;
+                    } else if(crumb === "..") {
+                        if(target.parent !== null) {
+                            target = target.parent;
+                        } else {
+                            throw Error("no parent directory");
+                        }
+                    } else {
+                        let next = target.filesContained.find((subfile) => subfile.name === crumb);
+                        if(next !== undefined) {
+                            target = next;
+                        } else {
+                            throw Error(`file ${crumb} could not be found`);
+                        }
+                    }
+                }
+
+                return target;
+            }
+        }
+
+
+        function splitTokens(cmd) {
+            //Simple split on whitespace is sufficient for this challenge
+            return cmd.split(" ")
+                      .map((token) => token.trim())
+                      .filter((token) => token != "");
+        }
+
+        function execute(cmd, currentDirectory, commands, sudoSet, user="ctfd", machine="my-machine") {
+            let useSudo = (cmd.search("sudo") === 0);
+            if(useSudo) {
+                cmd = cmd.slice("sudo ".length);
+                if(!sudoSet.test(cmd)) {
+                    return `User ${user} doesn't have permission to execute '${cmd}' as root on ${machine}.`
+                }
+            }
+            
+            //Catch empty commands.
+            let cmdArr = splitTokens(cmd);
+            if(cmdArr.length === 0) {
+                return "\n";
+            }
+            
+            //Try to find the command
+            let commandFn = (cmdArr[0] in commands) ? commands[cmdArr[0]] : undefined;
+            if(commandFn === undefined) {
+                return `Command ${cmdArr[0]} not found`;
+            }
+            
+            //Use current directory as target if none provided
+            if(cmdArr.length >= 2) {
+                try {
+                    target = currentDirectory.navigate(cmdArr[1]);
+                } catch (error) {
+                    return `${cmdArr[0]}: ${cmdArr[1]}: No such file or directory`;
+                }
+            } else {
+                target = currentDirectory;
+            }
+            return commandFn(target, useSudo);
+        }
+
+
+
+        ///////////////////////
+        //Backend - Challenge 1
+        ///////////////////////
+
+        //Fake filesystem for challenge 1
+        const filesystemRoot = new FileEntry("/", true, true, 
+            new FileEntry("flags", true, true,
+                new FileEntry("first-flag.txt", false, false, "ejmCTF{sud0K~u}"),
+            ),
+            new FileEntry("flagless", true, true,
+                new FileEntry("not_a_flag.csv", false, false, "rutabaga"),
+            new FileEntry("lookSomewhereElse.json", false, false, "paprika"),
+                new FileEntry("SeriouslyNoFlagsHere.txt", false, false, "tahini")
+            ),
+            new FileEntry("home", true, true,
+                new FileEntry(".bashrc", false, true, "Ha, I didn't go to *that* much effort."),
+                new FileEntry("wishlist", false, true, "- more sudo permissions")
+            )
+        )
+
+        //Sudo commands for challenge 1
+        //Corresponds roughly to sudoers.d file:
+        // ctfd ALL = (root) NOPASSWD: /usr/bin/ls *
+        // ctfd ALL = (root) NOPASSWD: /usr/bin/cat /flagless/*
+        sudos = {
+            allowlist: [
+                /ls .*/,
+                /cat (\/)?flagless\/.*/
+            ],
+
+            //cmd should already have "sudo " sliced from it
+            test: function(cmd) {
+                for(let re of this.allowlist) {
+                    if(re.test(cmd)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        //Commands in imaginary $PATH for challenge 1
+        commands = {
+            ls: function(target, sudo=false) {
+                if(target.isDirectory) {
+                    s = "";
+                    for(let subfile of target.filesContained) {
+                        s += subfile.name;
+                        s += "\n";
+                    }
+                    return s;
+                }
+                else {
+                    return target.name;
+                }
+            },
+
+            cat: function(target, sudo=false) {
+                if(target.isDirectory) {
+                    return `cat: ${target.name}: Is a directory`;
+                }
+                else if(!target.isReadable && !sudo) {
+                    return `cat: ${target.name}: Permission denied`;
+                }
+                else {
+                    return target.content;
+                }
+            },
+
+            cd: function(target, sudo=false) {
+                if(!target.isDirectory) {
+                    return `cd: ${target.name}: Not a directory`;
+                } else if (!target.isReadable && !sudo) {
+                    return `cd: ${target.name}: Permission denied`;
+                } else {
+                    currentDir = target;
+                }
+                return "";
+            },
+
+            pwd: function(target, sudo=false) {
+                let path = [];
+                let tempDir = target;
+                while(tempDir) {
+                    path.push(tempDir.name);
+                    tempDir = tempDir.parent;
+                }
+                //Gets rid of the extraneous '/' from the top-level directory name
+                path.pop();
+                path.reverse();
+                return "/" + path.join("/");
+            }
+        }
+        
+        currentDir = filesystemRoot;
+
+
+        ///////////
+        // Frontend
+        ///////////
+        function processInput(event) {
+            let cin = document.querySelector("#cin");
+            let cout = document.querySelector("#cout");
+
+            let p = document.createElement("p");
+            p.innerText = `\$ ${cin.value}`;
+            
+            let resp = document.createElement("p");
+            resp.style.color = "gray";
+            
+            resp.innerText = execute(cin.value, currentDir, commands, sudos);
+
+            cin.value = "";
+
+            cout.insertBefore(resp, cout.firstChild);
+            cout.insertBefore(p, cout.firstChild);
+        }
+
+        let con = document.querySelector("#c");
+        con.action = processInput;
+
+        let csubmit = document.querySelector("#csubmit");
+        csubmit.addEventListener("click", processInput, false);
+        window.addEventListener("keydown", (event) => {
+            if(event.key === 'Enter') {
+                processInput(event);
+            }
+        }, false);
+
+        let cout = document.querySelector("#cout");
+        let p = document.createElement("p");
+
+        cout.appendChild(p);
+
+    </script>
+</body>
+</html>
